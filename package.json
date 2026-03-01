@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:all": "concurrently \"npm run dev\" \"wrangler pages dev --proxy 5173 --compatibility-date=2024-04-03\"",
+    "dev:firebase": "concurrently \"npm run dev\" \"firebase emulators:start\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
