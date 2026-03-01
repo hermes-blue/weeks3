@@ -13,6 +13,7 @@ import {
   Fade,
   Stack,
   Divider,
+  MenuItem,
 } from "@mui/material";
 import {
   PhotoCamera,
@@ -22,14 +23,12 @@ import {
   Refresh,
   Share,
   Download,
+  Person,
 } from "@mui/icons-material";
 import { styled, keyframes } from "@mui/material/styles";
 import ReactMarkdown from "react-markdown";
-
-const shimmer = keyframes`
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
-`;
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase";
 
 const ProfilePaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(6),
@@ -87,14 +86,6 @@ const ReportBox = styled(Box)(({ theme }) => ({
     fontSize: "1.05rem",
     marginBottom: theme.spacing(2),
   },
-  "& ul, & ol": {
-    paddingLeft: theme.spacing(3),
-    marginBottom: theme.spacing(2),
-  },
-  "& li": {
-    marginBottom: theme.spacing(1),
-    color: "#444",
-  },
 }));
 
 const UserSummaryCard = styled(Paper)(({ theme }) => ({
@@ -112,6 +103,7 @@ const SetupProfile = () => {
   const [photo, setPhoto] = useState(null);
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
+  const [gender, setGender] = useState("");
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
 
@@ -134,22 +126,11 @@ const SetupProfile = () => {
     setReport(null);
 
     try {
-      const response = await fetch("/api/consult", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ height, weight, photo }),
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        alert("Error: " + data.error);
-      } else {
-        setReport(data.report);
-      }
+      const getStyleAdvice = httpsCallable(functions, "getStyleAdvice");
+      const result = await getStyleAdvice({ height, weight, gender, photo });
+      setReport(result.data.advice);
     } catch (error) {
-      alert("Something went wrong: " + error.message);
+      alert("분석 중 오류가 발생했습니다: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -173,7 +154,7 @@ const SetupProfile = () => {
           Style AI
         </Typography>
         <Typography variant="h6" color="textSecondary" sx={{ mb: 6, fontWeight: 400, opacity: 0.8 }}>
-          데이터 기반의 퍼스널 스타일링을 시작하세요.
+          데이터 기반의 퍼스널 스타일링 조언을 받아보세요.
         </Typography>
 
         {!report ? (
@@ -210,6 +191,35 @@ const SetupProfile = () => {
             </Box>
 
             <Stack spacing={3} sx={{ maxWidth: 400, mx: "auto" }}>
+              <TextField
+                select
+                fullWidth
+                label="성별 (Gender)"
+                variant="filled"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Person color="primary" />
+                    </InputAdornment>
+                  ),
+                  disableUnderline: true,
+                }}
+                sx={{
+                  "& .MuiFilledInput-root": {
+                    borderRadius: 4,
+                    backgroundColor: "rgba(0,0,0,0.03)",
+                    "&:hover": { backgroundColor: "rgba(0,0,0,0.05)" },
+                    "&.Mui-focused": { backgroundColor: "rgba(0,0,0,0.05)" },
+                  },
+                }}
+              >
+                <MenuItem value="male">남성</MenuItem>
+                <MenuItem value="female">여성</MenuItem>
+                <MenuItem value="other">기타</MenuItem>
+              </TextField>
+
               <TextField
                 fullWidth
                 label="키 (Height)"
@@ -257,7 +267,7 @@ const SetupProfile = () => {
                     backgroundColor: "rgba(0,0,0,0.03)",
                     "&:hover": { backgroundColor: "rgba(0,0,0,0.05)" },
                     "&.Mui-focused": { backgroundColor: "rgba(0,0,0,0.05)" },
-                  },
+                  }
                 }}
               />
 
@@ -268,7 +278,7 @@ const SetupProfile = () => {
                 disabled={!height || !weight || loading}
                 startIcon={loading ? <CircularProgress size={24} color="inherit" /> : <AutoAwesome />}
               >
-                {loading ? "스타일 분석 엔진 가동 중..." : "AI 스타일 분석 시작"}
+                {loading ? "스타일 분석 중..." : "스타일 분석 시작"}
               </GlowButton>
             </Stack>
           </Box>
@@ -280,19 +290,15 @@ const SetupProfile = () => {
                 <Box sx={{ textAlign: "left" }}>
                   <Typography variant="h6" fontWeight="800">분석 완료</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    {height}cm · {weight}kg 기반의 리포트
+                    {height}cm · {weight}kg · {gender === "male" ? "남성" : gender === "female" ? "여성" : "기타"}
                   </Typography>
-                </Box>
-                <Box sx={{ ml: "auto" }}>
-                   <IconButton size="small"><Share /></IconButton>
-                   <IconButton size="small"><Download /></IconButton>
                 </Box>
               </UserSummaryCard>
 
               <ReportBox>
                 <Typography variant="h5" fontWeight="900" sx={{ mb: 3, display: "flex", alignItems: "center", gap: 1.5 }}>
                   <AutoAwesome sx={{ color: "#6366f1" }} /> 
-                  나만의 퍼스널 스타일링 리포트
+                  오늘의 스타일 조언 (5줄 이내)
                 </Typography>
                 <Divider sx={{ mb: 3, opacity: 0.5 }} />
                 <ReactMarkdown>{report}</ReactMarkdown>
